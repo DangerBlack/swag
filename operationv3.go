@@ -395,8 +395,21 @@ func (o *OperationV3) ParseParamComment(commentLine string, astFile *ast.File) e
 			}
 
 			for name, item := range schema.Spec.Properties {
+				// Skip if item or item.Spec is nil
+				if item == nil || item.Spec == nil {
+					o.parser.debug.Printf("skip field [%s] in %s: item or item.Spec is nil", name, refType)
+					continue
+				}
 				prop := item.Spec
+				// Skip if Type is nil or empty
 				if prop.Type == nil || len(*prop.Type) == 0 {
+					o.parser.debug.Printf("skip field [%s] in %s: Type is nil or empty", name, refType)
+					continue
+				}
+
+				// Additional safety check: ensure Type slice has at least one element
+				if len(*prop.Type) < 1 {
+					o.parser.debug.Printf("skip field [%s] in %s: Type slice is empty", name, refType)
 					continue
 				}
 
@@ -405,6 +418,7 @@ func (o *OperationV3) ParseParamComment(commentLine string, astFile *ast.File) e
 				switch {
 				case (*prop.Type)[0] == ARRAY &&
 					prop.Items.Schema != nil &&
+					prop.Items.Schema.Spec.Type != nil &&
 					len(*prop.Items.Schema.Spec.Type) > 0 &&
 					IsSimplePrimitiveType((*prop.Items.Schema.Spec.Type)[0]):
 
@@ -413,7 +427,7 @@ func (o *OperationV3) ParseParamComment(commentLine string, astFile *ast.File) e
 				case IsSimplePrimitiveType((*prop.Type)[0]):
 					itemParam = createParameterV3(paramType, prop.Description, name, PRIMITIVE, (*prop.Type)[0], findInSlice(schema.Spec.Required, name), enums, o.parser.collectionFormatInQuery)
 				default:
-					o.parser.debug.Printf("skip field [%s] in %s is not supported type for %s", name, refType, paramType)
+					o.parser.debug.Printf("skip field [%s] in %s: not supported type for %s", name, refType, paramType)
 
 					continue
 				}
