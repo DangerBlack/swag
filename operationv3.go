@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -394,22 +395,21 @@ func (o *OperationV3) ParseParamComment(commentLine string, astFile *ast.File) e
 				return nil
 			}
 
-			for name, item := range schema.Spec.Properties {
-				// Skip if item or item.Spec is nil
+			propNames := make([]string, 0, len(schema.Spec.Properties))
+			for name := range schema.Spec.Properties {
+				propNames = append(propNames, name)
+			}
+			sort.Strings(propNames)
+
+			for _, name := range propNames {
+				item := schema.Spec.Properties[name]
 				if item == nil || item.Spec == nil {
 					o.parser.debug.Printf("skip field [%s] in %s: item or item.Spec is nil", name, refType)
 					continue
 				}
 				prop := item.Spec
-				// Skip if Type is nil or empty
 				if prop.Type == nil || len(*prop.Type) == 0 {
 					o.parser.debug.Printf("skip field [%s] in %s: Type is nil or empty", name, refType)
-					continue
-				}
-
-				// Additional safety check: ensure Type slice has at least one element
-				if len(*prop.Type) < 1 {
-					o.parser.debug.Printf("skip field [%s] in %s: Type slice is empty", name, refType)
 					continue
 				}
 
