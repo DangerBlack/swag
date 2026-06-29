@@ -1042,6 +1042,16 @@ func (p *Parser) parseStructFieldV3(file *ast.File, field *ast.Field) (map[strin
 		return nil, nil, err
 	}
 
+	// OpenAPI 3.1 uses JSON Schema 2020-12 which removed the `nullable` keyword.
+	// For pointer fields (e.g. *UsageDTO), express nullability via anyOf + {type: 'null'}.
+	// Example: storage: anyOf: [{$ref: '...'}, {type: 'null'}]
+	if _, isPointer := field.Type.(*ast.StarExpr); isPointer {
+		nullSchema := PrimitiveSchemaV3("null")
+		wrapped := spec.NewSchemaSpec()
+		wrapped.Spec.AnyOf = []*spec.RefOrSpec[spec.Schema]{schema, nullSchema}
+		schema = wrapped
+	}
+
 	var tagRequired []string
 
 	required, err := ps.IsRequired()

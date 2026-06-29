@@ -117,9 +117,18 @@ func (pkgDefs *PackagesDefinitions) RangeFiles(handle func(info *AstFileInfo) er
 // @Return parsed definitions.
 func (pkgDefs *PackagesDefinitions) ParseTypes() (map[*TypeSpecDef]*Schema, error) {
 	parsedSchemas := make(map[*TypeSpecDef]*Schema)
-	for astFile, info := range pkgDefs.files {
-		pkgDefs.parseTypesFromFile(astFile, info.PackagePath, parsedSchemas)
-		pkgDefs.parseFunctionScopedTypesFromFile(astFile, info.PackagePath, parsedSchemas)
+
+	sortedFiles := make([]*AstFileInfo, 0, len(pkgDefs.files))
+	for _, info := range pkgDefs.files {
+		sortedFiles = append(sortedFiles, info)
+	}
+	sort.Slice(sortedFiles, func(i, j int) bool {
+		return sortedFiles[i].Path < sortedFiles[j].Path
+	})
+
+	for _, info := range sortedFiles {
+		pkgDefs.parseTypesFromFile(info.File, info.PackagePath, parsedSchemas)
+		pkgDefs.parseFunctionScopedTypesFromFile(info.File, info.PackagePath, parsedSchemas)
 	}
 	pkgDefs.removeAllNotUniqueTypes()
 	pkgDefs.evaluateAllConstVariables()
